@@ -27,3 +27,9 @@ Thumbs.db
 node_modules/
 __pycache__/
 *.pyc
+
+# React/Vite
+frontend/dist/
+frontend/.env
+frontend/.env.local
+frontend/.env.production

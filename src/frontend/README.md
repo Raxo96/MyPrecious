@@ -1,84 +1,89 @@
-# Portfolio Tracker - Frontend
+# MyPrecious Frontend (React)
 
-Minimal SvelteKit web UI for portfolio tracking.
+Portfolio tracking application frontend built with React, Vite, and Tailwind CSS.
 
-## Features (MVP)
+## Features
 
-✅ Portfolio Overview
-- Total portfolio value display
-- 1D change percentage
-
-✅ Positions List
-- View all holdings
-- Current value and P&L per position
-
-✅ Asset Search
-- Search stocks by symbol or name
-- Real-time filtering
-
-✅ Add Transaction Form
-- Select asset
-- Enter quantity, price, date
-- Submit transaction
+- Portfolio overview with performance metrics
+- Asset search and discovery
+- Transaction management (buy/sell)
+- Interactive charts using Lightweight Charts
+- Responsive design with Tailwind CSS
 
 ## Tech Stack
 
-- **SvelteKit** - Web framework
-- **Vite** - Build tool
-- **Node 18** - Runtime (in Docker)
+- **React 18** - UI framework
+- **Vite** - Build tool and dev server
+- **React Router** - Client-side routing
+- **Tailwind CSS** - Utility-first CSS framework
+- **Lightweight Charts** - Financial charts
+- **Axios** - HTTP client
 
-## Running
+## Development
 
-### With Docker (Recommended)
+### Prerequisites
 
+- Node.js 18+ 
+- npm or yarn
+
+### Setup
+
+1. Install dependencies:
 ```bash
-# Start frontend
-docker-compose up -d frontend
-
-# View logs
-docker logs -f portfolio_tracker_frontend
-
-# Access at: http://localhost:5173
+npm install
 ```
 
-### Local Development
-
+2. Copy environment variables:
 ```bash
-cd src/frontend
-npm install
+copy .env.example .env
+```
+
+3. Start development server:
+```bash
 npm run dev
 ```
 
-## Current State
+The app will be available at http://localhost:5173
 
-**Mock Data**: Currently using hardcoded data for demonstration
-**Next Steps**: Connect to API backend
+### Build for Production
 
-## Structure
-
-```
-src/frontend/
-├── package.json
-├── svelte.config.js
-├── vite.config.js
-└── src/
-    ├── app.html          # HTML template
-    └── routes/
-        └── +page.svelte  # Main page
+```bash
+npm run build
+npm run preview
 ```
 
-## Screenshots
+## Project Structure
 
-The UI includes:
-- Clean, modern design
-- Responsive layout
-- Color-coded gains/losses (green/red)
-- Easy-to-use forms
+```
+src/
+├── components/          # Reusable UI components
+│   ├── Header.jsx      # Navigation header
+│   ├── Chart.jsx       # Chart component
+│   └── Loading.jsx     # Loading spinner
+├── pages/              # Page components
+│   ├── PortfolioOverview.jsx
+│   ├── AssetSearch.jsx
+│   ├── AssetDetail.jsx
+│   └── AddTransaction.jsx
+├── services/           # API services
+│   └── api.js         # API client
+├── utils/             # Utility functions
+│   └── formatters.js  # Currency/date formatters
+├── App.jsx            # Main app component
+└── main.jsx          # Entry point
+```
 
-## Next Steps
+## API Integration
 
-1. ✅ Basic UI created
-2. ⏭️ Connect to API backend
-3. ⏭️ Real data from database
-4. ⏭️ Charts integration
-5. ⏭️ Real-time updates
+The frontend communicates with the FastAPI backend through REST endpoints:
+
+- `GET /api/portfolios/:id` - Portfolio summary
+- `GET /api/portfolios/:id/positions` - Portfolio positions
+- `GET /api/portfolios/:id/chart` - Portfolio chart data
+- `GET /api/assets/search` - Asset search
+- `GET /api/assets/:id` - Asset details
+- `POST /api/transactions` - Create transaction
+
+## Environment Variables
+
+- `VITE_API_BASE_URL` - Backend API base URL (default: http://localhost:8000/api)
