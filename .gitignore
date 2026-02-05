@@ -1,0 +1,29 @@
+# Docker
+docker-compose.override.yml
+.env.local
+.env.*.local
+
+# Docker volumes and data
+volumes/
+data/
+
+# Docker build context
+.dockerignore
+
+# Container logs
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
