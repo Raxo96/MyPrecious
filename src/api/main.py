@@ -166,89 +166,157 @@ def get_asset_by_symbol(asset_symbol: str, db: Session = Depends(get_db)):
         "current_price": float(latest_price.close) if latest_price else 0.0
     }
 
+def sample_daily_prices(prices: List[AssetPrice]) -> List[AssetPrice]:
+    """
+    Sample one price record per day, preferring records near market close.
+    
+    Args:
+        prices: List of AssetPrice records ordered by timestamp
+        
+    Returns:
+        List of sampled AssetPrice records (approximately one per day)
+    """
+    if not prices:
+        return []
+    
+    # Group prices by date
+    from collections import defaultdict
+    prices_by_date = defaultdict(list)
+    for price in prices:
+        date_key = price.timestamp.date()
+        prices_by_date[date_key].append(price)
+    
+    # For each date, select the record closest to market close (21:00 UTC)
+    sampled = []
+    for date in sorted(prices_by_date.keys()):
+        day_prices = prices_by_date[date]
+        
+        # Market close is 21:00 UTC (4:00 PM ET)
+        target_time = datetime.combine(date, datetime.min.time()).replace(hour=21, minute=0, second=0, microsecond=0)
+        
+        # Find price closest to target time
+        closest_price = min(
+            day_prices,
+            key=lambda p: abs((p.timestamp - target_time).total_seconds())
+        )
+        sampled.append(closest_price)
+    
+    return sampled
+
+
 @app.get("/api/assets/{asset_symbol}/chart")
 def get_asset_chart(asset_symbol: str, db: Session = Depends(get_db)):
-    """Get asset price changes for multiple time periods"""
-    # Look up asset by symbol (case-insensitive)
-    asset = db.query(Asset).filter(
-        func.lower(Asset.symbol) == asset_symbol.lower(),
-        Asset.is_active == True
-    ).first()
-    
-    if not asset:
-        raise HTTPException(status_code=404, detail="Asset not found")
-    
-    # Get current price (most recent AssetPrice record)
-    latest_price_record = db.query(AssetPrice).filter(
-        AssetPrice.asset_id == asset.id
-    ).order_by(desc(AssetPrice.timestamp)).first()
-    
-    current_price = float(latest_price_record.close) if latest_price_record else 0.0
-    
-    # Helper function to get market close price for a given date
-    def get_market_close_price(target_date):
-        """
-        Get the price closest to market close (4:00 PM ET / 9:00 PM UTC) for a given date.
-        Falls back to the most recent price before the target date if no price exists on that exact date.
-        """
-        # Market close is around 21:00 UTC (4:00 PM ET)
-        market_close_time = target_date.replace(hour=21, minute=0, second=0, microsecond=0)
-        
-        # Try to find price within 2 hours of market close on the target date
-        price_near_close = db.query(AssetPrice).filter(
-            AssetPrice.asset_id == asset.id,
-            AssetPrice.timestamp >= market_close_time - timedelta(hours=2),
-            AssetPrice.timestamp <= market_close_time + timedelta(hours=2)
-        ).order_by(
-            func.abs(func.extract('epoch', AssetPrice.timestamp - market_close_time))
+    """Get asset price changes for multiple time periods and historical OHLC data"""
+    try:
+        # Look up asset by symbol (case-insensitive)
+        asset = db.query(Asset).filter(
+            func.lower(Asset.symbol) == asset_symbol.lower(),
+            Asset.is_active == True
         ).first()
         
-        if price_near_close:
-            return price_near_close
+        if not asset:
+            raise HTTPException(status_code=404, detail="Asset not found")
         
-        # Fallback: get the most recent price at or before the target date
-        return db.query(AssetPrice).filter(
-            AssetPrice.asset_id == asset.id,
-            AssetPrice.timestamp <= target_date
+        # Get current price (most recent AssetPrice record)
+        latest_price_record = db.query(AssetPrice).filter(
+            AssetPrice.asset_id == asset.id
         ).order_by(desc(AssetPrice.timestamp)).first()
-    
-    # Time period mappings (in days)
-    time_periods = {
-        "1D": 1,
-        "1M": 30,
-        "3M": 90,
-        "6M": 180,
-        "1Y": 365
-    }
-    
-    # Calculate price changes for each period
-    price_changes = {}
-    now = datetime.now()
-    
-    for period_name, days in time_periods.items():
-        # Calculate target date (N days ago)
-        target_date = now - timedelta(days=days)
         
-        # Get market close price for that date
-        historical_price_record = get_market_close_price(target_date)
+        current_price = float(latest_price_record.close) if latest_price_record else 0.0
         
-        # Calculate percentage change if historical price exists
-        if historical_price_record and current_price > 0:
-            historical_price = float(historical_price_record.close)
-            if historical_price > 0:
-                # Formula: ((current - historical) / historical) * 100
-                price_change = ((current_price - historical_price) / historical_price) * 100
-                price_changes[period_name] = price_change
+        # Helper function to get market close price for a given date
+        def get_market_close_price(target_date):
+            """
+            Get the price closest to market close (4:00 PM ET / 9:00 PM UTC) for a given date.
+            Falls back to the most recent price before the target date if no price exists on that exact date.
+            """
+            # Market close is around 21:00 UTC (4:00 PM ET)
+            market_close_time = target_date.replace(hour=21, minute=0, second=0, microsecond=0)
+            
+            # Try to find price within 2 hours of market close on the target date
+            price_near_close = db.query(AssetPrice).filter(
+                AssetPrice.asset_id == asset.id,
+                AssetPrice.timestamp >= market_close_time - timedelta(hours=2),
+                AssetPrice.timestamp <= market_close_time + timedelta(hours=2)
+            ).order_by(
+                func.abs(func.extract('epoch', AssetPrice.timestamp - market_close_time))
+            ).first()
+            
+            if price_near_close:
+                return price_near_close
+            
+            # Fallback: get the most recent price at or before the target date
+            return db.query(AssetPrice).filter(
+                AssetPrice.asset_id == asset.id,
+                AssetPrice.timestamp <= target_date
+            ).order_by(desc(AssetPrice.timestamp)).first()
+        
+        # Time period mappings (in days)
+        time_periods = {
+            "1D": 1,
+            "1M": 30,
+            "3M": 90,
+            "6M": 180,
+            "1Y": 365
+        }
+        
+        # Calculate price changes for each period
+        price_changes = {}
+        now = datetime.now()
+        
+        for period_name, days in time_periods.items():
+            # Calculate target date (N days ago)
+            target_date = now - timedelta(days=days)
+            
+            # Get market close price for that date
+            historical_price_record = get_market_close_price(target_date)
+            
+            # Calculate percentage change if historical price exists
+            if historical_price_record and current_price > 0:
+                historical_price = float(historical_price_record.close)
+                if historical_price > 0:
+                    # Formula: ((current - historical) / historical) * 100
+                    price_change = ((current_price - historical_price) / historical_price) * 100
+                    price_changes[period_name] = price_change
+                else:
+                    price_changes[period_name] = None
             else:
                 price_changes[period_name] = None
-        else:
-            price_changes[period_name] = None
-    
-    return {
-        "symbol": asset.symbol,
-        "current_price": current_price,
-        "price_changes": price_changes
-    }
+        
+        # Query 1 year of historical price data
+        cutoff_date = now - timedelta(days=365)
+        prices = db.query(AssetPrice).filter(
+            AssetPrice.asset_id == asset.id,
+            AssetPrice.timestamp >= cutoff_date
+        ).order_by(AssetPrice.timestamp).all()
+        
+        # Sample daily prices (one record per day, closest to market close)
+        sampled_prices = sample_daily_prices(prices)
+        
+        # Transform database records to API response format
+        data = []
+        for price in sampled_prices:
+            data.append({
+                "timestamp": price.timestamp.isoformat(),
+                "open": float(price.open) if price.open is not None else 0.0,
+                "high": float(price.high) if price.high is not None else 0.0,
+                "low": float(price.low) if price.low is not None else 0.0,
+                "close": float(price.close) if price.close is not None else 0.0
+            })
+        
+        return {
+            "symbol": asset.symbol,
+            "current_price": current_price,
+            "price_changes": price_changes,
+            "data": data
+        }
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions (404 for asset not found)
+        raise
+    except Exception as e:
+        # Catch any database or other errors and return 500
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/api/portfolios/{portfolio_id}")
 def get_portfolio(portfolio_id: int, db: Session = Depends(get_db)):

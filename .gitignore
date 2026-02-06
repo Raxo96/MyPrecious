@@ -33,3 +33,9 @@ frontend/dist/
 frontend/.env
 frontend/.env.local
 frontend/.env.production
+
+
+# Database backups
+src/database/backups/
+.kiro/
+.vscode/

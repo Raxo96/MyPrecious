@@ -188,7 +188,7 @@ function AssetDetail() {
 
       {/* Price Chart */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold mb-4">Price Chart (1M)</h2>
+        <h2 className="text-xl font-semibold mb-4">Price Chart (1Y)</h2>
         {chartData.length > 0 ? (
           <Chart data={chartData} type="candlestick" />
         ) : (
