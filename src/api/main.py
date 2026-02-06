@@ -57,6 +57,57 @@ class TransactionCreate(BaseModel):
 def root():
     return {"message": "Portfolio Tracker API", "status": "running"}
 
+@app.get("/api/assets")
+def get_all_assets(db: Session = Depends(get_db)):
+    """Get all active assets ordered by symbol"""
+    # Query all active assets from database, ordered by symbol
+    assets = db.query(Asset).filter(
+        Asset.is_active == True
+    ).order_by(Asset.symbol).all()
+    
+    # Get latest prices for each asset
+    result = []
+    for asset in assets:
+        latest_price = db.query(AssetPrice).filter(
+            AssetPrice.asset_id == asset.id
+        ).order_by(desc(AssetPrice.timestamp)).first()
+        
+        current_price = float(latest_price.close) if latest_price else 0.0
+        
+        # Calculate 1-day percentage change
+        day_change_pct = None
+        if latest_price:
+            current_time = latest_price.timestamp
+            target_time = current_time - timedelta(hours=24)
+            
+            # Get price from 24 hours ago (closest to target_time)
+            previous_price_record = db.query(AssetPrice).filter(
+                AssetPrice.asset_id == asset.id,
+                AssetPrice.timestamp <= target_time
+            ).order_by(desc(AssetPrice.timestamp)).first()
+            
+            if previous_price_record:
+                previous_price = float(previous_price_record.close)
+                
+                # Handle edge case: zero previous price
+                if previous_price != 0:
+                    # Calculate percentage: ((current - previous) / previous) * 100
+                    day_change_pct = ((current_price - previous_price) / previous_price) * 100
+                    # Round to 2 decimal places
+                    day_change_pct = round(day_change_pct, 2)
+        
+        result.append({
+            "id": asset.id,
+            "symbol": asset.symbol,
+            "name": asset.name,
+            "asset_type": asset.asset_type,
+            "exchange": asset.exchange,
+            "current_price": current_price,
+            "day_change_pct": day_change_pct
+        })
+    
+    return {"assets": result}
+
 @app.get("/api/assets/search")
 def search_assets(q: str = "", db: Session = Depends(get_db)):
     """Search assets by symbol or name"""

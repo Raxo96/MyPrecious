@@ -19,6 +19,7 @@ export const assetApi = {
   search: (query, limit = 20) => apiClient.get(`/assets/search?q=${query}&limit=${limit}`),
   getAsset: (symbol) => apiClient.get(`/assets/${symbol}`),
   getChart: (symbol) => apiClient.get(`/assets/${symbol}/chart`),
+  getAll: () => apiClient.get('/assets'),
 }
 
 export const transactionApi = {
