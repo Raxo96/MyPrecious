@@ -17,13 +17,25 @@ export const portfolioApi = {
 
 export const assetApi = {
   search: (query, limit = 20) => apiClient.get(`/assets/search?q=${query}&limit=${limit}`),
-  getAsset: (id) => apiClient.get(`/assets/${id}`),
-  getChart: (id, range = '1M') => apiClient.get(`/assets/${id}/chart?range=${range}`),
+  getAsset: (symbol) => apiClient.get(`/assets/${symbol}`),
+  getChart: (symbol) => apiClient.get(`/assets/${symbol}/chart`),
 }
 
 export const transactionApi = {
   create: (transaction) => apiClient.post('/transactions', transaction),
   getAll: (portfolioId) => apiClient.get(`/transactions?portfolio_id=${portfolioId}`),
+}
+
+export const fetcherApi = {
+  getStatus: () => apiClient.get('/fetcher/status'),
+  getLogs: (limit = 100, offset = 0, level = null) => {
+    const params = new URLSearchParams({ limit, offset })
+    if (level) params.append('level', level)
+    return apiClient.get(`/fetcher/logs?${params}`)
+  },
+  getStatistics: () => apiClient.get('/fetcher/statistics'),
+  getRecentUpdates: (limit = 50) => apiClient.get(`/fetcher/recent-updates?limit=${limit}`),
+  triggerUpdate: () => apiClient.post('/fetcher/trigger-update'),
 }
 
 export default apiClient

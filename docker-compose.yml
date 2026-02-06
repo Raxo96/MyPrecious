@@ -54,9 +54,27 @@ services:
     container_name: portfolio_tracker_fetcher
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/portfolio_tracker
+      - UPDATE_INTERVAL_MINUTES=10
+      - LOG_RETENTION_DAYS=30
+      - STATS_PERSIST_INTERVAL=300
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import psycopg2; conn = psycopg2.connect(\"postgresql://postgres:postgres@postgres:5432/portfolio_tracker\"); conn.close()' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 volumes:
   postgres_data:

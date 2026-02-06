@@ -10,6 +10,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY fetcher.py .
 COPY db_loader.py .
 COPY backfill_daemon.py .
+COPY log_store.py .
+COPY statistics_tracker.py .
+COPY portfolio_value_calculator.py .
 COPY __init__.py .
 
 # Run daemon with unbuffered output

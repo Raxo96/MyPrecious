@@ -4,7 +4,9 @@ Manually trigger price update for testing (simulates 15-min timer).
 """
 import os
 import sys
-sys.path.insert(0, '/local/home/hoskarro/workplace/MyPrecious/src/fetcher')
+
+# Add parent directory to path
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
 from backfill_daemon import BackfillDaemon
 

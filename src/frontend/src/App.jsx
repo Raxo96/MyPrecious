@@ -4,6 +4,7 @@ import PortfolioOverview from './pages/PortfolioOverview'
 import AssetSearch from './pages/AssetSearch'
 import AssetDetail from './pages/AssetDetail'
 import AddTransaction from './pages/AddTransaction'
+import FetcherMonitoring from './pages/FetcherMonitoring'
 
 function App() {
   return (
@@ -14,8 +15,9 @@ function App() {
           <Routes>
             <Route path="/" element={<PortfolioOverview />} />
             <Route path="/assets" element={<AssetSearch />} />
-            <Route path="/assets/:id" element={<AssetDetail />} />
+            <Route path="/assets/:symbol" element={<AssetDetail />} />
             <Route path="/transactions/new" element={<AddTransaction />} />
+            <Route path="/fetcher" element={<FetcherMonitoring />} />
           </Routes>
         </main>
       </div>

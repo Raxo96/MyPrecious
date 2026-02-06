@@ -35,6 +35,16 @@ function Header() {
               Assets
             </Link>
             <Link
+              to="/fetcher"
+              className={`px-3 py-2 rounded-md text-sm font-medium ${
+                isActive('/fetcher') 
+                  ? 'text-primary bg-blue-50' 
+                  : 'text-gray-600 hover:text-primary'
+              }`}
+            >
+              Fetcher
+            </Link>
+            <Link
               to="/transactions/new"
               className="bg-primary text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
             >

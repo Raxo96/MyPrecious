@@ -73,7 +73,7 @@ function AssetSearch() {
             {assets.map((asset) => (
               <Link
                 key={asset.id}
-                to={`/assets/${asset.id}`}
+                to={`/assets/${asset.symbol}`}
                 className="block p-4 border border-gray-200 rounded-lg hover:border-primary hover:shadow-md transition-all"
               >
                 <div className="flex justify-between items-start">

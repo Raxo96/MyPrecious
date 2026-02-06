@@ -120,7 +120,7 @@ function PortfolioOverview() {
                   <tr key={`${position.symbol}-${index}`} className="border-b hover:bg-gray-50">
                     <td className="py-3">
                       <Link
-                        to={`/assets/${position.asset_id}`}
+                        to={`/assets/${position.symbol}`}
                         className="text-primary hover:underline"
                       >
                         <div>

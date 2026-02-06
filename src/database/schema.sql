@@ -210,3 +210,59 @@ CREATE TRIGGER transaction_created_trigger
 AFTER INSERT ON transactions
 FOR EACH ROW
 EXECUTE FUNCTION notify_transaction_created();
+
+-- ============================================================================
+-- FETCHER MONITORING TABLES
+-- ============================================================================
+
+-- Fetcher logs table
+-- Stores operational logs from the fetcher daemon
+CREATE TABLE IF NOT EXISTS fetcher_logs (
+    id SERIAL PRIMARY KEY,
+    timestamp TIMESTAMP NOT NULL DEFAULT NOW(),
+    level VARCHAR(20) NOT NULL CHECK (level IN ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')),
+    message TEXT NOT NULL,
+    context JSONB,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for efficient log queries
+CREATE INDEX idx_fetcher_logs_timestamp ON fetcher_logs(timestamp DESC);
+CREATE INDEX idx_fetcher_logs_level ON fetcher_logs(level);
+CREATE INDEX idx_fetcher_logs_created_at ON fetcher_logs(created_at DESC);
+
+-- Fetcher statistics table
+-- Stores aggregated statistics about fetcher performance
+CREATE TABLE IF NOT EXISTS fetcher_statistics (
+    id SERIAL PRIMARY KEY,
+    timestamp TIMESTAMP NOT NULL DEFAULT NOW(),
+    uptime_seconds INTEGER NOT NULL,
+    total_cycles INTEGER NOT NULL,
+    successful_cycles INTEGER NOT NULL,
+    failed_cycles INTEGER NOT NULL,
+    success_rate DECIMAL(5,2) NOT NULL,
+    average_cycle_duration DECIMAL(10,2) NOT NULL,
+    assets_tracked INTEGER NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for statistics queries
+CREATE INDEX idx_fetcher_statistics_timestamp ON fetcher_statistics(timestamp DESC);
+
+-- Price update log table
+-- Tracks individual price updates per asset
+CREATE TABLE IF NOT EXISTS price_update_log (
+    id SERIAL PRIMARY KEY,
+    asset_id INTEGER NOT NULL REFERENCES assets(id),
+    timestamp TIMESTAMP NOT NULL DEFAULT NOW(),
+    price DECIMAL(20,8),
+    success BOOLEAN NOT NULL,
+    error_message TEXT,
+    duration_ms INTEGER,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for price update queries
+CREATE INDEX idx_price_update_log_timestamp ON price_update_log(timestamp DESC);
+CREATE INDEX idx_price_update_log_asset ON price_update_log(asset_id);
+CREATE INDEX idx_price_update_log_success ON price_update_log(success, timestamp DESC);
