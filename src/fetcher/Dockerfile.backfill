@@ -1,0 +1,26 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy backfill scripts and dependencies
+COPY backfill_cli.py .
+COPY backfill_orchestrator.py .
+COPY backfill_models.py .
+COPY symbol_processor.py .
+COPY rate_limiter.py .
+COPY data_validator.py .
+COPY fetcher.py .
+COPY db_loader.py .
+COPY log_store.py .
+COPY sp500_symbols.json .
+COPY __init__.py .
+
+# Set entrypoint to backfill CLI
+ENTRYPOINT ["python", "-u", "backfill_cli.py"]
+
+# Default command (can be overridden)
+CMD ["--once"]

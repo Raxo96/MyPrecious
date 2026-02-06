@@ -1,122 +1,190 @@
-#!/usr/bin/env python3
 """
-Test script for LogStore component.
-Tests basic functionality: connect, log, get_recent_logs, purge_old_logs.
+Tests for the database logging infrastructure.
+
+This module tests the DatabaseLogHandler and logging setup functionality.
 """
-import os
-import sys
-from datetime import datetime, timedelta
 
-# Add parent directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
-
-from log_store import LogStore
+import pytest
+import logging
+import psycopg2
+from datetime import datetime
+from log_store import DatabaseLogHandler, setup_logging, log_with_context
 
 
-def test_log_store():
-    """Test LogStore basic functionality."""
-    db_url = os.getenv('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/portfolio_tracker')
+class TestDatabaseLogHandler:
+    """Tests for DatabaseLogHandler class."""
     
-    print("=" * 60)
-    print("Testing LogStore Component")
-    print("=" * 60)
+    def test_handler_initialization_with_invalid_connection(self):
+        """Test that handler gracefully handles invalid database connection."""
+        # Use invalid connection string
+        handler = DatabaseLogHandler("postgresql://invalid:invalid@localhost:5432/invalid")
+        
+        # Handler should be created but connection should be None
+        assert handler.conn is None
     
-    # Initialize LogStore
-    log_store = LogStore(db_url)
+    def test_emit_without_connection(self):
+        """Test that emit() doesn't crash when database is unavailable."""
+        handler = DatabaseLogHandler("postgresql://invalid:invalid@localhost:5432/invalid")
+        
+        # Create a log record
+        logger = logging.getLogger("test")
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+        
+        # This should not raise an exception
+        logger.info("Test message")
+        
+        # Clean up
+        logger.removeHandler(handler)
+        handler.close()
     
-    # Test 1: Connect
-    print("\n[Test 1] Testing connect()...")
-    try:
-        log_store.connect()
-        print("✓ Connection established successfully")
-    except Exception as e:
-        print(f"✗ Connection failed: {e}")
-        return
+    def test_extract_context(self):
+        """Test that context extraction works correctly."""
+        handler = DatabaseLogHandler("postgresql://invalid:invalid@localhost:5432/invalid")
+        
+        # Create a log record with custom attributes
+        record = logging.LogRecord(
+            name="test",
+            level=logging.INFO,
+            pathname="test.py",
+            lineno=1,
+            msg="Test message",
+            args=(),
+            exc_info=None
+        )
+        
+        # Add custom attributes
+        record.symbol = "AAPL"
+        record.task_id = 123
+        record.duration = 1.5
+        
+        # Extract context
+        context = handler._extract_context(record)
+        
+        # Verify context contains custom attributes
+        assert context is not None
+        assert context["symbol"] == "AAPL"
+        assert context["task_id"] == 123
+        assert context["duration"] == 1.5
+        
+        # Verify standard attributes are excluded
+        assert "name" not in context
+        assert "msg" not in context
+        assert "pathname" not in context
+        
+        handler.close()
     
-    # Test 2: Write log entries
-    print("\n[Test 2] Testing log() method...")
-    try:
-        log_store.log("INFO", "Test log entry - basic message")
-        print("✓ Basic log entry written")
+    def test_extract_context_empty(self):
+        """Test that extract_context returns None when no custom attributes."""
+        handler = DatabaseLogHandler("postgresql://invalid:invalid@localhost:5432/invalid")
         
-        log_store.log("WARNING", "Test warning with context", {
-            "component": "test_script",
-            "test_id": 123,
-            "details": "This is a test warning"
-        })
-        print("✓ Log entry with context written")
+        # Create a log record without custom attributes
+        record = logging.LogRecord(
+            name="test",
+            level=logging.INFO,
+            pathname="test.py",
+            lineno=1,
+            msg="Test message",
+            args=(),
+            exc_info=None
+        )
         
-        log_store.log("ERROR", "Test error message", {
-            "error_code": "TEST_001",
-            "stack_trace": "Simulated stack trace"
-        })
-        print("✓ Error log entry written")
+        # Extract context
+        context = handler._extract_context(record)
         
-    except Exception as e:
-        print(f"✗ Logging failed: {e}")
-        log_store.close()
-        return
-    
-    # Test 3: Retrieve recent logs
-    print("\n[Test 3] Testing get_recent_logs()...")
-    try:
-        # Get all recent logs
-        logs = log_store.get_recent_logs(limit=10)
-        print(f"✓ Retrieved {len(logs)} recent logs")
+        # Should return None or empty dict
+        assert context is None or len(context) == 0
         
-        if logs:
-            print("\nMost recent log:")
-            latest = logs[0]
-            print(f"  - ID: {latest['id']}")
-            print(f"  - Timestamp: {latest['timestamp']}")
-            print(f"  - Level: {latest['level']}")
-            print(f"  - Message: {latest['message']}")
-            if latest['context']:
-                print(f"  - Context: {latest['context']}")
-        
-        # Test pagination
-        logs_page1 = log_store.get_recent_logs(limit=2, offset=0)
-        logs_page2 = log_store.get_recent_logs(limit=2, offset=2)
-        print(f"✓ Pagination works: Page 1 has {len(logs_page1)} logs, Page 2 has {len(logs_page2)} logs")
-        
-        # Test level filtering
-        error_logs = log_store.get_recent_logs(limit=10, level="ERROR")
-        print(f"✓ Level filtering works: Found {len(error_logs)} ERROR logs")
-        
-    except Exception as e:
-        print(f"✗ Retrieving logs failed: {e}")
-        log_store.close()
-        return
-    
-    # Test 4: Purge old logs (test with 0 days to see if it works, but won't delete recent logs)
-    print("\n[Test 4] Testing purge_old_logs()...")
-    try:
-        # First, let's check how many logs we have
-        all_logs = log_store.get_recent_logs(limit=1000)
-        print(f"  Total logs before purge: {len(all_logs)}")
-        
-        # Purge logs older than 365 days (shouldn't delete anything recent)
-        deleted = log_store.purge_old_logs(days=365)
-        print(f"✓ Purge completed: {deleted} logs deleted (older than 365 days)")
-        
-    except Exception as e:
-        print(f"✗ Purging logs failed: {e}")
-        log_store.close()
-        return
-    
-    # Test 5: Close connection
-    print("\n[Test 5] Testing close()...")
-    try:
-        log_store.close()
-        print("✓ Connection closed successfully")
-    except Exception as e:
-        print(f"✗ Closing connection failed: {e}")
-        return
-    
-    print("\n" + "=" * 60)
-    print("All tests completed successfully!")
-    print("=" * 60)
+        handler.close()
 
 
-if __name__ == "__main__":
-    test_log_store()
+class TestSetupLogging:
+    """Tests for setup_logging function."""
+    
+    def test_setup_logging_console_only(self):
+        """Test that setup_logging creates console handler."""
+        logger = setup_logging(db_connection_string=None, log_level=logging.INFO)
+        
+        # Should have at least one handler (console)
+        assert len(logger.handlers) >= 1
+        
+        # First handler should be StreamHandler
+        assert isinstance(logger.handlers[0], logging.StreamHandler)
+        
+        # Clean up
+        logger.handlers.clear()
+    
+    def test_setup_logging_with_database(self):
+        """Test that setup_logging creates both console and database handlers."""
+        # Use invalid connection to test handler creation without actual database
+        logger = setup_logging(
+            db_connection_string="postgresql://invalid:invalid@localhost:5432/invalid",
+            log_level=logging.INFO
+        )
+        
+        # Should have at least one handler (console, database may fail gracefully)
+        assert len(logger.handlers) >= 1
+        
+        # Clean up
+        logger.handlers.clear()
+    
+    def test_setup_logging_custom_format(self):
+        """Test that setup_logging accepts custom log format."""
+        custom_format = "%(levelname)s - %(message)s"
+        logger = setup_logging(
+            db_connection_string=None,
+            log_level=logging.DEBUG,
+            log_format=custom_format
+        )
+        
+        # Verify handler has custom format
+        assert len(logger.handlers) >= 1
+        handler = logger.handlers[0]
+        assert handler.formatter is not None
+        
+        # Clean up
+        logger.handlers.clear()
+
+
+class TestLogWithContext:
+    """Tests for log_with_context function."""
+    
+    def test_log_with_context_adds_attributes(self):
+        """Test that log_with_context adds context as attributes."""
+        # Create a test logger with a custom handler that captures records
+        logger = logging.getLogger("test_context")
+        logger.setLevel(logging.INFO)
+        
+        # Create a handler that captures log records
+        captured_records = []
+        
+        class CaptureHandler(logging.Handler):
+            def emit(self, record):
+                captured_records.append(record)
+        
+        handler = CaptureHandler()
+        logger.addHandler(handler)
+        
+        # Log with context
+        log_with_context(
+            logger, logging.INFO,
+            "Test message",
+            symbol="AAPL",
+            task_id=123,
+            duration=1.5
+        )
+        
+        # Verify record was captured
+        assert len(captured_records) == 1
+        record = captured_records[0]
+        
+        # Verify context attributes are present
+        assert hasattr(record, 'symbol')
+        assert record.symbol == "AAPL"
+        assert hasattr(record, 'task_id')
+        assert record.task_id == 123
+        assert hasattr(record, 'duration')
+        assert record.duration == 1.5
+        
+        # Clean up
+        logger.removeHandler(handler)

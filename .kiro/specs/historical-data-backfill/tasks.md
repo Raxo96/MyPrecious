@@ -8,14 +8,14 @@ The implementation follows a bottom-up approach: building core components first 
 
 ## Tasks
 
-- [ ] 1. Create S&P 500 configuration file
+- [x] 1. Create S&P 500 configuration file
   - Create `src/fetcher/sp500_symbols.json` with 500 stock symbols
   - Use a reliable source (Wikipedia or financial data provider) for the current S&P 500 list
   - Include metadata: name, last_updated date
   - _Requirements: 1.1, 1.3_
 
-- [ ] 2. Implement RateLimiter class
-  - [ ] 2.1 Create `src/fetcher/rate_limiter.py` with RateLimiter class
+- [x] 2. Implement RateLimiter class
+  - [x] 2.1 Create `src/fetcher/rate_limiter.py` with RateLimiter class
     - Implement `__init__` with min_delay_seconds and hourly_limit parameters
     - Implement `wait_if_needed()` to enforce minimum delay and hourly limit
     - Implement `record_request()` to track request timestamps
@@ -41,8 +41,8 @@ The implementation follows a bottom-up approach: building core components first 
     - Generate random number of requests
     - Verify counter equals number of requests made
 
-- [ ] 3. Implement DataValidator class
-  - [ ] 3.1 Create `src/fetcher/data_validator.py` with DataValidator class
+- [x] 3. Implement DataValidator class
+  - [x] 3.1 Create `src/fetcher/data_validator.py` with DataValidator class
     - Implement `validate_price_record(price)` to check required fields and value constraints
     - Implement `validate_ohlc_consistency(price)` to verify OHLC relationships
     - Implement `calculate_completeness(expected_days, actual_records)` to compute percentage
@@ -61,16 +61,16 @@ The implementation follows a bottom-up approach: building core components first 
     - Generate random expected/actual counts
     - Verify percentage calculation is accurate
 
-- [ ] 4. Implement data models
-  - [ ] 4.1 Create `src/fetcher/backfill_models.py` with dataclasses
+- [x] 4. Implement data models
+  - [x] 4.1 Create `src/fetcher/backfill_models.py` with dataclasses
     - Define BackfillTask dataclass (id, asset_id, symbol, start_date, end_date, status, attempts, retry_after)
     - Define ProcessingResult dataclass (symbol, success, records_inserted, records_skipped, completeness_pct, duration_seconds, error_message)
     - Define BackfillReport dataclass (total_symbols, successful, failed, total_records_inserted, total_duration_seconds, start_time, end_time, failed_symbols)
     - Define ValidationResult dataclass (valid, errors)
     - _Requirements: All (data structures)_
 
-- [ ] 5. Implement SymbolProcessor class
-  - [ ] 5.1 Create `src/fetcher/symbol_processor.py` with SymbolProcessor class
+- [x] 5. Implement SymbolProcessor class
+  - [x] 5.1 Create `src/fetcher/symbol_processor.py` with SymbolProcessor class
     - Implement `__init__` accepting fetcher, db_loader, rate_limiter, validator
     - Implement `process(task)` to orchestrate fetching, validation, and storage for one symbol
     - Implement `update_queue_status(task_id, status, error_message)` to update backfill_queue table
@@ -96,12 +96,12 @@ The implementation follows a bottom-up approach: building core components first 
     - Generate random processing outcomes (success, failure, rate limit)
     - Verify status transitions follow state machine rules
 
-- [ ] 6. Checkpoint - Ensure core components work
+- [x] 6. Checkpoint - Ensure core components work
   - Ensure all tests pass for RateLimiter, DataValidator, and SymbolProcessor
   - Ask the user if questions arise
 
 - [ ] 7. Implement BackfillOrchestrator class
-  - [ ] 7.1 Create `src/fetcher/backfill_orchestrator.py` with BackfillOrchestrator class
+  - [x] 7.1 Create `src/fetcher/backfill_orchestrator.py` with BackfillOrchestrator class
     - Implement `__init__` with db_connection_string and config_path
     - Implement `load_symbols()` to read S&P 500 symbols from JSON config
     - Implement `initialize_queue(symbols, days)` to populate backfill_queue table
@@ -142,7 +142,7 @@ The implementation follows a bottom-up approach: building core components first 
     - Verify report counts are accurate
 
 - [ ] 8. Implement retry logic
-  - [ ] 8.1 Add retry logic to BackfillOrchestrator
+  - [x] 8.1 Add retry logic to BackfillOrchestrator
     - Implement exponential backoff for failed tasks
     - Track attempts counter in backfill_queue
     - Mark tasks as permanently failed after 5 attempts
@@ -156,7 +156,7 @@ The implementation follows a bottom-up approach: building core components first 
     - Verify retries up to 5 times then marks as permanently failed
 
 - [ ] 9. Implement database integration
-  - [ ] 9.1 Add database methods to BackfillOrchestrator
+  - [x] 9.1 Add database methods to BackfillOrchestrator
     - Implement queue initialization (INSERT INTO backfill_queue)
     - Implement queue status updates (UPDATE backfill_queue)
     - Implement pending task queries (SELECT FROM backfill_queue WHERE status IN ...)
@@ -177,7 +177,7 @@ The implementation follows a bottom-up approach: building core components first 
     - Verify tracked_assets entry has recent last_price_update timestamp
 
 - [ ] 10. Implement logging infrastructure
-  - [ ] 10.1 Add logging to all components
+  - [x] 10.1 Add logging to all components
     - Configure Python logging with console and database handlers
     - Create database handler to write to fetcher_logs table
     - Add structured logging with context (symbol, task_id, etc.)
@@ -196,13 +196,13 @@ The implementation follows a bottom-up approach: building core components first 
     - Trigger various errors
     - Verify logs contain error message, symbol, and stack trace
 
-- [ ] 11. Checkpoint - Ensure orchestration works end-to-end
+- [X] 11. Checkpoint - Ensure orchestration works end-to-end
   - Ensure all tests pass for BackfillOrchestrator
   - Test with a small subset of symbols (5-10) against test database
   - Ask the user if questions arise
 
-- [ ] 12. Implement CLI interface
-  - [ ] 12.1 Create `src/fetcher/backfill_cli.py` with command-line interface
+- [x] 12. Implement CLI interface
+  - [x] 12.1 Create `src/fetcher/backfill_cli.py` with command-line interface
     - Use argparse for CLI argument parsing
     - Add --once flag for one-time execution
     - Add --scheduled flag for daemon mode (optional, may defer)
@@ -220,8 +220,8 @@ The implementation follows a bottom-up approach: building core components first 
     - Test --force parameter enables re-fetching
     - _Requirements: 6.4, 6.5, 9.4_
 
-- [ ] 13. Implement resume capability
-  - [ ] 13.1 Add resume logic to BackfillOrchestrator
+- [x] 13. Implement resume capability
+  - [x] 13.1 Add resume logic to BackfillOrchestrator
     - On startup, query backfill_queue for incomplete tasks
     - Resume from last incomplete task
     - Skip assets with existing data unless --force is used
@@ -239,22 +239,22 @@ The implementation follows a bottom-up approach: building core components first 
     - Process asset with existing data
     - Verify asset is skipped unless --force is provided
 
-- [ ] 14. Add signal handling for graceful shutdown
-  - [ ] 14.1 Implement signal handlers in BackfillOrchestrator
+- [x] 14. Add signal handling for graceful shutdown
+  - [x] 14.1 Implement signal handlers in BackfillOrchestrator
     - Register handlers for SIGINT and SIGTERM
     - On signal, save current progress to database
     - Exit cleanly with appropriate status code
     - _Requirements: 9.5_
 
-- [ ] 15. Create Docker integration
-  - [ ] 15.1 Create Dockerfile for backfill script
+- [x] 15. Create Docker integration
+  - [x] 15.1 Create Dockerfile for backfill script
     - Base on Python 3.11 image
     - Install dependencies (psycopg2, requests)
     - Copy backfill scripts and config
     - Set entrypoint to backfill_cli.py
     - _Requirements: 10.4_
   
-  - [ ] 15.2 Update docker-compose.yml
+  - [x] 15.2 Update docker-compose.yml
     - Add backfill service (optional, for scheduled runs)
     - Configure environment variables for database connection
     - Mount config file as volume
@@ -279,7 +279,7 @@ The implementation follows a bottom-up approach: building core components first 
     - Test error handling with invalid symbols
     - _Requirements: 10.5_
 
-- [ ] 18. Final checkpoint - End-to-end validation
+- [x] 18. Final checkpoint - End-to-end validation
   - Run full backfill with 500 symbols in test environment
   - Verify all data is stored correctly
   - Verify frontend displays historical data

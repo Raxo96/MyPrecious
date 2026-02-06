@@ -76,6 +76,22 @@ services:
       retries: 3
       start_period: 40s
 
+  backfill:
+    build:
+      context: ./src/fetcher
+      dockerfile: Dockerfile.backfill
+    container_name: portfolio_tracker_backfill
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/portfolio_tracker
+    volumes:
+      - ./src/fetcher/sp500_symbols.json:/app/sp500_symbols.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - backfill
+    command: ["--once", "--days", "365"]
+
 volumes:
   postgres_data:
   frontend_node_modules:
