@@ -44,6 +44,7 @@ class PortfolioResponse(BaseModel):
     day_change: float = 0.0
 
 class TransactionCreate(BaseModel):
+    portfolio_id: int
     asset_id: int
     transaction_type: str
     quantity: float
@@ -52,10 +53,144 @@ class TransactionCreate(BaseModel):
     timestamp: str
     notes: str = None
 
+class PortfolioListItem(BaseModel):
+    id: int
+    name: str
+    total_value_usd: float
+    total_return_pct: float
+    position_count: int
+    created_at: str
+
+class PortfolioCreate(BaseModel):
+    name: str
+    currency: str = "USD"
+
+class PortfolioUpdate(BaseModel):
+    name: str
+
 # Routes
 @app.get("/")
 def root():
     return {"message": "Portfolio Tracker API", "status": "running"}
+
+@app.get("/api/portfolios")
+def get_all_portfolios(db: Session = Depends(get_db)):
+    """Get all portfolios for the current user with calculated metrics"""
+    # Query all portfolios for user_id=1 (current default user)
+    portfolios = db.query(Portfolio).filter(
+        Portfolio.user_id == 1
+    ).order_by(desc(Portfolio.created_at)).all()
+    
+    result = []
+    for portfolio in portfolios:
+        # Calculate total_value_usd by joining with positions and latest prices
+        positions = db.query(PortfolioPosition).filter(
+            PortfolioPosition.portfolio_id == portfolio.id
+        ).all()
+        
+        total_value = 0.0
+        total_cost = 0.0
+        
+        for pos in positions:
+            # Get latest price for this asset
+            latest_price = db.query(AssetPrice).filter(
+                AssetPrice.asset_id == pos.asset_id
+            ).order_by(desc(AssetPrice.timestamp)).first()
+            
+            if latest_price:
+                current_price = float(latest_price.close)
+                quantity = float(pos.quantity)
+                avg_buy_price = float(pos.average_buy_price)
+                
+                total_value += quantity * current_price
+                total_cost += quantity * avg_buy_price
+        
+        # Calculate total return percentage
+        total_return_pct = 0.0
+        if total_cost > 0:
+            total_return_pct = ((total_value - total_cost) / total_cost) * 100
+        
+        # Calculate position count
+        position_count = len(positions)
+        
+        result.append({
+            "id": portfolio.id,
+            "name": portfolio.name,
+            "total_value_usd": round(total_value, 2),
+            "total_return_pct": round(total_return_pct, 2),
+            "position_count": position_count,
+            "created_at": portfolio.created_at.isoformat()
+        })
+    
+    return {"portfolios": result}
+
+@app.post("/api/portfolios")
+def create_portfolio(portfolio: PortfolioCreate, db: Session = Depends(get_db)):
+    """Create a new portfolio"""
+    # Validate name is not empty/whitespace
+    if not portfolio.name or not portfolio.name.strip():
+        raise HTTPException(status_code=400, detail="Portfolio name cannot be empty or whitespace")
+    
+    # Create new portfolio with user_id=1 (current default user)
+    new_portfolio = Portfolio(
+        user_id=1,
+        name=portfolio.name.strip(),
+        currency=portfolio.currency,
+        created_at=datetime.now()
+    )
+    
+    db.add(new_portfolio)
+    db.commit()
+    db.refresh(new_portfolio)
+    
+    return {
+        "id": new_portfolio.id,
+        "name": new_portfolio.name,
+        "currency": new_portfolio.currency,
+        "created_at": new_portfolio.created_at.isoformat()
+    }
+
+@app.put("/api/portfolios/{portfolio_id}")
+def update_portfolio(portfolio_id: int, portfolio: PortfolioUpdate, db: Session = Depends(get_db)):
+    """Update portfolio metadata (name)"""
+    # Validate portfolio exists
+    existing_portfolio = db.query(Portfolio).filter(Portfolio.id == portfolio_id).first()
+    if not existing_portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    
+    # Validate name is not empty/whitespace
+    if not portfolio.name or not portfolio.name.strip():
+        raise HTTPException(status_code=400, detail="Portfolio name cannot be empty or whitespace")
+    
+    # Update portfolio name
+    existing_portfolio.name = portfolio.name.strip()
+    
+    db.commit()
+    db.refresh(existing_portfolio)
+    
+    return {
+        "id": existing_portfolio.id,
+        "name": existing_portfolio.name,
+        "currency": existing_portfolio.currency,
+        "created_at": existing_portfolio.created_at.isoformat()
+    }
+
+@app.delete("/api/portfolios/{portfolio_id}")
+def delete_portfolio(portfolio_id: int, db: Session = Depends(get_db)):
+    """Delete a portfolio and all associated positions and transactions (CASCADE)"""
+    # Validate portfolio exists
+    existing_portfolio = db.query(Portfolio).filter(Portfolio.id == portfolio_id).first()
+    if not existing_portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    
+    # Delete portfolio (CASCADE will remove positions and transactions)
+    db.delete(existing_portfolio)
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": "Portfolio deleted"
+    }
 
 @app.get("/api/assets")
 def get_all_assets(db: Session = Depends(get_db)):
@@ -409,17 +544,21 @@ def get_positions(portfolio_id: int, db: Session = Depends(get_db)):
 @app.post("/api/transactions")
 def create_transaction(
     transaction: TransactionCreate,
-    portfolio_id: int = 1,  # Default to first portfolio
     db: Session = Depends(get_db)
 ):
     """Create a new transaction"""
+    # Validate portfolio exists
+    portfolio = db.query(Portfolio).filter(Portfolio.id == transaction.portfolio_id).first()
+    if not portfolio:
+        raise HTTPException(status_code=404, detail=f"Portfolio with id {transaction.portfolio_id} not found")
+    
     # Validate transaction type
     if transaction.transaction_type not in ["buy", "sell"]:
         raise HTTPException(status_code=400, detail="Transaction type must be 'buy' or 'sell'")
     
     # Create transaction
     new_transaction = Transaction(
-        portfolio_id=portfolio_id,
+        portfolio_id=transaction.portfolio_id,
         asset_id=transaction.asset_id,
         transaction_type=transaction.transaction_type,
         quantity=transaction.quantity,
@@ -432,7 +571,7 @@ def create_transaction(
     
     # Update or create position
     position = db.query(PortfolioPosition).filter(
-        PortfolioPosition.portfolio_id == portfolio_id,
+        PortfolioPosition.portfolio_id == transaction.portfolio_id,
         PortfolioPosition.asset_id == transaction.asset_id
     ).first()
     
@@ -449,7 +588,7 @@ def create_transaction(
         else:
             # Create new position
             position = PortfolioPosition(
-                portfolio_id=portfolio_id,
+                portfolio_id=transaction.portfolio_id,
                 asset_id=transaction.asset_id,
                 quantity=transaction.quantity,
                 average_buy_price=transaction.price,

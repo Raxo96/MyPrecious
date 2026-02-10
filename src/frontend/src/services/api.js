@@ -10,9 +10,26 @@ const apiClient = axios.create({
 })
 
 export const portfolioApi = {
-  getPortfolio: (id = 1) => apiClient.get(`/portfolios/${id}`),
-  getPositions: (id = 1) => apiClient.get(`/portfolios/${id}/positions`),
-  getChart: (id = 1, days = 30) => apiClient.get(`/portfolios/${id}/history?days=${days}`),
+  // List all portfolios
+  getAll: () => apiClient.get('/portfolios'),
+  
+  // Create a new portfolio
+  create: (data) => apiClient.post('/portfolios', data),
+  
+  // Update an existing portfolio
+  update: (id, data) => apiClient.put(`/portfolios/${id}`, data),
+  
+  // Delete a portfolio
+  delete: (id) => apiClient.delete(`/portfolios/${id}`),
+  
+  // Get a specific portfolio
+  getPortfolio: (id) => apiClient.get(`/portfolios/${id}`),
+  
+  // Get positions for a specific portfolio
+  getPositions: (id) => apiClient.get(`/portfolios/${id}/positions`),
+  
+  // Get chart data for a specific portfolio
+  getChart: (id, days = 30) => apiClient.get(`/portfolios/${id}/history?days=${days}`),
 }
 
 export const assetApi = {

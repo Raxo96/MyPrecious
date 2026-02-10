@@ -22,7 +22,7 @@ function Header() {
                   : 'text-gray-600 hover:text-primary'
               }`}
             >
-              Portfolio
+              Portfolios
             </Link>
             <Link
               to="/assets"
